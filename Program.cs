@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using LewiStoreOOPSQL.Models;
 using LewiStoreOOPSQL.Services;
 using Spectre.Console;
+using LewiStoreOOPSQL.Data;
 
 namespace LewiStoreOOPSQL
 {
@@ -10,7 +11,10 @@ namespace LewiStoreOOPSQL
     {
         static void Main(string[] args)
         {
-            InventoryService service = new InventoryService();
+            string connectionString = "Host=localhost;Port=5432;Username=postgres;Password=admin;Database=LewisStoreDB";
+
+            DatabaseManager db = new DatabaseManager(connectionString);
+            InventoryService service = new InventoryService(db);
             bool running = true;
 
             while (running)
@@ -39,6 +43,15 @@ namespace LewiStoreOOPSQL
                         ViewSalesUI(service);
                         break;
 
+                    case "✏️ Update Product":
+                        UpdateProductUI(service);
+                        break;
+
+                    case "🗑️ Delete Product":
+                        DeleteProductUI(service);
+                        break;
+
+
                     case "Cancel / Return to Menu":
                         continue;
 
@@ -60,10 +73,10 @@ namespace LewiStoreOOPSQL
             AnsiConsole.Write(
                 Align.Center(
                     new Markup(@"[red]
-▗▖   ▗▄▄▄▖▗▖ ▗▖▗▄▄▄▖ ▗▄▄▖     ▗▄▄▖▗▄▄▄▖▗▄▖ ▗▄▄▖ ▗▄▄▄▖
-▐▌   ▐▌   ▐▌ ▐▌  █  ▐▌       ▐▌     █ ▐▌ ▐▌▐▌ ▐▌▐▌
-▐▌   ▐▛▀▀▘▐▌ ▐▌  █   ▝▀▚▖     ▝▀▚▖  █ ▐▌ ▐▌▐▛▀▚▖▐▛▀▀▘
-▐▙▄▄▖▐▙▄▄▖▐▙█▟▌▗▄█▄▖▗▄▄▞▘    ▗▄▄▞▘  █ ▝▚▄▞▘▐▌ ▐▌▐▙▄▄▖
+        ▗▖   ▗▄▄▄▖▗▖ ▗▖▗▄▄▄▖ ▗▄▄▖     ▗▄▄▖▗▄▄▄▖▗▄▖ ▗▄▄▖ ▗▄▄▄▖
+    ▐▌   ▐▌   ▐▌ ▐▌  █  ▐▌       ▐▌     █ ▐▌ ▐▌▐▌ ▐▌▐▌
+        ▐▌   ▐▛▀▀▘▐▌ ▐▌  █   ▝▀▚▖     ▝▀▚▖  █ ▐▌ ▐▌▐▛▀▚▖▐▛▀▀▘
+        ▐▙▄▄▖▐▙▄▄▖▐▙█▟▌▗▄█▄▖▗▄▄▞▘    ▗▄▄▞▘  █ ▝▚▄▞▘▐▌ ▐▌▐▙▄▄▖
 [/]")
                 )
             );
@@ -73,7 +86,7 @@ namespace LewiStoreOOPSQL
         {
             AnsiConsole.Write(
                 Align.Center(
-                    new Panel("[cyan]1. Add Product\n2. View Products\n3. Sell Product\n4. View Sales\n5. Exit[/]")
+                   new Panel("[cyan]1. Add Product\n2. View Products\n3. Sell Product\n4. View Sales\n5. Update Product\n6. Delete Product\n7. Exit[/]")
                         .Header("STORE MENU")
                         .Border(BoxBorder.Rounded)
                 )
@@ -89,12 +102,14 @@ namespace LewiStoreOOPSQL
                     .HighlightStyle(new Style(foreground: Color.Black, background: Color.Cyan))
                     .AddChoices(new[]
                     {
-                        "📦 Add Product",
-                        "📋 View Products",
-                        "💰 Sell Product",
-                        "🧾 View Sales",
-                        "Cancel / Return to Menu",
-                        "❌ Exit"
+                      "📦 Add Product",
+    "📋 View Products",
+    "💰 Sell Product",
+    "🧾 View Sales",
+    "✏️ Update Product",
+    "🗑️ Delete Product",
+    "Cancel / Return to Menu",
+    "❌ Exit"
                     })
             );
         }
@@ -235,6 +250,188 @@ namespace LewiStoreOOPSQL
             }
         }
 
+        static void UpdateProductUI(InventoryService service)
+        {
+            Console.Clear();
+
+            AnsiConsole.Write(
+                Align.Center(
+                    new Panel("[bold cyan]Inventory Overview[/]")
+                        .Border(BoxBorder.Double)
+                        .Padding(1, 1)
+                )
+            );
+
+            List<Product> products = service.GetAllProducts();
+
+            if (products.Count == 0)
+            {
+                AnsiConsole.MarkupLine("[red]No products available to delete.[/]");
+                return;
+            }
+
+            var table = new Table().Border(TableBorder.Rounded);
+
+            table.AddColumn("[yellow]ID[/]");
+            table.AddColumn("[yellow]Name[/]");
+            table.AddColumn("[yellow]Description[/]");
+            table.AddColumn("[yellow]Price[/]");
+            table.AddColumn("[yellow]Qty[/]");
+
+            foreach (Product product in products)
+            {
+                table.AddRow(
+                    product.ProductId.ToString(),
+                    Markup.Escape(product.ProductName),
+                    Markup.Escape(product.Description),
+                    $"R{product.PriceExclusiveVat:0.00}",
+                    product.QuantityInStock.ToString()
+                );
+            }
+
+            AnsiConsole.Write(Align.Center(table));
+
+            try
+            {
+                int productId = AnsiConsole.Prompt(
+                    new TextPrompt<int>("[green]Enter Product ID to update:[/]")
+                        .ValidationErrorMessage("[red]Invalid Product ID[/]")
+                );
+
+                Product existingProduct = service.GetProductById(productId);
+
+                if (existingProduct == null)
+                {
+                    AnsiConsole.MarkupLine("[red]Product not found.[/]");
+                    return;
+                }
+
+                AnsiConsole.MarkupLine($"[grey]Current Name:[/] {Markup.Escape(existingProduct.ProductName)}");
+                AnsiConsole.MarkupLine($"[grey]Current Description:[/] {Markup.Escape(existingProduct.Description)}");
+                AnsiConsole.MarkupLine($"[grey]Current Price:[/] R{existingProduct.PriceExclusiveVat:0.00}");
+                AnsiConsole.MarkupLine($"[grey]Current Stock:[/] {existingProduct.QuantityInStock}");
+
+                string newName = AnsiConsole.Ask<string>("[green]Enter New Product Name:[/]");
+                string newDescription = AnsiConsole.Ask<string>("[green]Enter New Description:[/]");
+
+                decimal newPrice = AnsiConsole.Prompt(
+                    new TextPrompt<decimal>("[green]Enter New Price:[/]")
+                        .ValidationErrorMessage("[red]Invalid price[/]")
+                        .Validate(price => price > 0)
+                );
+
+                int newQuantity = AnsiConsole.Prompt(
+                    new TextPrompt<int>("[green]Enter New Quantity:[/]")
+                        .ValidationErrorMessage("[red]Invalid quantity[/]")
+                        .Validate(qty => qty >= 0)
+                );
+
+                Product updatedProduct = new Product(
+                    productId,
+                    newName,
+                    newDescription,
+                    newPrice,
+                    newQuantity
+                );
+
+                service.UpdateProduct(updatedProduct);
+
+                AnsiConsole.Write(
+                    Align.Center(
+                        new Panel("[bold green]✔ Product Updated Successfully[/]")
+                            .Border(BoxBorder.Rounded)
+                    )
+                );
+            }
+            catch (Exception ex)
+            {
+                AnsiConsole.MarkupLine($"[red]Error:[/] {Markup.Escape(ex.Message)}");
+            }
+        }
+        static void DeleteProductUI(InventoryService service)
+        {
+            Console.Clear();
+
+            AnsiConsole.Write(
+                Align.Center(
+                    new Panel("[bold red]Delete Product[/]")
+                        .Border(BoxBorder.Double)
+                        .Padding(1, 1)
+                )
+            );
+
+            List<Product> products = service.GetAllProducts();
+
+            if (products.Count == 0)
+            {
+                AnsiConsole.MarkupLine("[red]No products available to delete.[/]");
+                return;
+            }
+
+            var table = new Table().Border(TableBorder.Rounded);
+
+            table.AddColumn("[yellow]ID[/]");
+            table.AddColumn("[yellow]Name[/]");
+            table.AddColumn("[yellow]Description[/]");
+            table.AddColumn("[yellow]Price[/]");
+            table.AddColumn("[yellow]Qty[/]");
+
+            foreach (Product product in products)
+            {
+                table.AddRow(
+                    product.ProductId.ToString(),
+                    Markup.Escape(product.ProductName),
+                    Markup.Escape(product.Description),
+                    $"R{product.PriceExclusiveVat:0.00}",
+                    product.QuantityInStock.ToString()
+                );
+            }
+
+            AnsiConsole.Write(Align.Center(table));
+
+            try
+            {
+                int productId = AnsiConsole.Prompt(
+                    new TextPrompt<int>("[green]Enter Product ID to delete:[/]")
+                        .ValidationErrorMessage("[red]Invalid Product ID[/]")
+                );
+
+                Product existingProduct = service.GetProductById(productId);
+
+                if (existingProduct == null)
+                {
+                    AnsiConsole.MarkupLine("[red]Product not found.[/]");
+                    return;
+                }
+
+                AnsiConsole.MarkupLine($"[yellow]You are about to delete:[/] {Markup.Escape(existingProduct.ProductName)}");
+
+                string confirmDelete = AnsiConsole.Prompt(
+                    new SelectionPrompt<string>()
+                        .Title("[red]Are you sure you want to delete this product?[/]")
+                        .AddChoices("Delete", "Cancel")
+                );
+
+                if (confirmDelete == "Cancel")
+                {
+                    AnsiConsole.MarkupLine("[grey]Delete cancelled.[/]");
+                    return;
+                }
+
+                service.DeleteProduct(productId);
+
+                AnsiConsole.Write(
+                    Align.Center(
+                        new Panel("[bold green]✔ Product Deleted Successfully[/]")
+                            .Border(BoxBorder.Rounded)
+                    )
+                );
+            }
+            catch (Exception ex)
+            {
+                AnsiConsole.MarkupLine($"[red]Error:[/] {Markup.Escape(ex.Message)}");
+            }
+        }
         static void SellProductUI(InventoryService service)
         {
             Console.Clear();
@@ -331,6 +528,7 @@ namespace LewiStoreOOPSQL
                 }
 
                 Sale sale = service.SellProduct(productId, sellQty);
+                Product updatedProduct = service.GetProductById(productId);
 
                 var receipt = new Table();
                 receipt.AddColumn("Field");
@@ -351,7 +549,7 @@ namespace LewiStoreOOPSQL
                         .Padding(1, 1)
                 );
 
-                AnsiConsole.MarkupLine($"\n[green]Stock remaining: {selectedProduct.QuantityInStock}[/]");
+                AnsiConsole.MarkupLine($"\n[green]Stock remaining: {updatedProduct.QuantityInStock}[/]");
                 AnsiConsole.MarkupLine("[grey]Thank you for shopping![/]");
             }
             catch (Exception ex)
@@ -383,11 +581,11 @@ namespace LewiStoreOOPSQL
 
             table.AddColumn("[yellow]Sale ID[/]");
             table.AddColumn("[yellow]Product ID[/]");
-            table.AddColumn("[yellow]Qty[/]");
+            table.AddColumn("[yellow]Quantity in stock[/]");
             table.AddColumn("[yellow]Subtotal[/]");
             table.AddColumn("[yellow]VAT[/]");
             table.AddColumn("[yellow]Total[/]");
-            table.AddColumn("[yellow]Date[/]");
+            table.AddColumn("[yellow]Date Of Purchase[/]");
 
             foreach (Sale sale in sales)
             {

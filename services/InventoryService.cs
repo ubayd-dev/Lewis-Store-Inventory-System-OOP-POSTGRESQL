@@ -1,82 +1,133 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using LewiStoreOOPSQL.Models;
+using LewiStoreOOPSQL.Data;
+
 
 namespace LewiStoreOOPSQL.Services
 {
     public class InventoryService
     {
-        private List<Product> products = new List<Product>();
-        private List<Sale> sales = new List<Sale>();
-        private int nextSaleId = 1;
+        private readonly DatabaseManager db;
+        // private const decimal VatRate = 0.15m;
+
+        public InventoryService(DatabaseManager db)
+        {
+            this.db = db;
+        }
+        private string CleanText(string value)
+        {
+            if (value == null)
+                return "";
+
+            return value.Trim();
+        }
+
+        private void ValidateProductText(string value, string fieldName)
+        {
+            if (string.IsNullOrWhiteSpace(value))
+                throw new Exception($"{fieldName} cannot be empty.");
+
+            if (value.Length > 100)
+                throw new Exception($"{fieldName} cannot be longer than 100 characters.");
+
+            bool hasLetter = value.Any(char.IsLetter);
+
+            if (!hasLetter)
+                throw new Exception($"{fieldName} must contain at least one letter.");
+
+            bool validCharacters = value.All(c =>
+                char.IsLetterOrDigit(c) ||
+                c == ' ' ||
+                c == '-' ||
+                c == '.'
+            );
+
+            if (!validCharacters)
+                throw new Exception($"{fieldName} contains invalid characters.");
+        }
 
         public void AddProduct(Product product)
         {
             if (product == null)
                 throw new Exception("Product cannot be null.");
 
-            if (string.IsNullOrWhiteSpace(product.ProductName))
-                throw new Exception("Product name cannot be empty");
+            product.ProductName = CleanText(product.ProductName);
+            product.Description = CleanText(product.Description);
+
+            ValidateProductText(product.ProductName, "Product name");
+            ValidateProductText(product.Description, "Description");
 
             if (product.PriceExclusiveVat <= 0)
-                throw new Exception("Price must be greater than zero");
+                throw new Exception("Price must be greater than zero.");
 
             if (product.QuantityInStock < 0)
-                throw new Exception("Quantity cannot be negative");
+                throw new Exception("Quantity cannot be negative.");
 
-            Product existingProduct = products.Find(p => p.ProductId == product.ProductId);
+            Product existingProduct = db.GetProductById(product.ProductId);
 
             if (existingProduct != null)
-                throw new Exception("Product with this Id already exists");
+                throw new Exception("Product with this ID already exists.");
 
-            products.Add(product);
+            db.AddProduct(product);
         }
 
         public List<Product> GetAllProducts()
         {
-            return new List<Product>(products);
+            return db.GetAllProducts();
         }
 
         public Product GetProductById(int productId)
         {
-            return products.Find(p => p.ProductId == productId);
+            return db.GetProductById(productId);
+        }
+        public void UpdateProduct(Product product)
+        {
+            if (product == null)
+                throw new Exception("Product cannot be null.");
+
+            product.ProductName = CleanText(product.ProductName);
+            product.Description = CleanText(product.Description);
+
+            ValidateProductText(product.ProductName, "Product name");
+            ValidateProductText(product.Description, "Description");
+
+            if (product.PriceExclusiveVat <= 0)
+                throw new Exception("Price must be greater than zero.");
+
+            if (product.QuantityInStock < 0)
+                throw new Exception("Quantity cannot be negative.");
+
+            Product existingProduct = db.GetProductById(product.ProductId);
+
+            if (existingProduct == null)
+                throw new Exception("Product not found.");
+
+            db.UpdateProduct(product);
+        }
+
+        public void DeleteProduct(int productId)
+        {
+            Product existingProduct = db.GetProductById(productId);
+
+            if (existingProduct == null)
+                throw new Exception("Product not found.");
+
+            if (db.ProductHasSales(productId))
+                throw new Exception("This product cannot be deleted because it has sales history.");
+
+            db.DeleteProduct(productId);
         }
 
         public Sale SellProduct(int productId, int quantity)
         {
-            Product product = GetProductById(productId);
-
-            if (product == null)
-                throw new Exception("Product not found");
-
-            if (quantity <= 0)
-                throw new Exception("Quantity must be greater than zero");
-
-            if (quantity > product.QuantityInStock)
-                throw new Exception("Not enough stock available");
-
-            decimal subTotal = product.PriceExclusiveVat * quantity;
-            decimal vat = subTotal * 0.15m;
-            decimal totalAmount = subTotal + vat;
-
-            product.QuantityInStock -= quantity;
-
-            Sale sale = new Sale(
-                nextSaleId++,
-                product.ProductId,
-                quantity,
-                subTotal,
-                vat,
-                totalAmount,
-                DateTime.Now
-            );
-
-            sales.Add(sale);
-            return sale;
+            return db.ProcessSale(productId, quantity);
         }
+
         public List<Sale> GetAllSales()
         {
-            return new List<Sale>(sales);
+            return db.GetAllSales();
         }
     }
 }

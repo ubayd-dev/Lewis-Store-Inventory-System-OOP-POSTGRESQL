@@ -8,6 +8,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="Npgsql" Version="10.0.2" />
     <PackageReference Include="Spectre.Console" Version="0.55.0" />
   </ItemGroup>
 
