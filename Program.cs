@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Threading;
 using LewiStoreOOPSQL.Models;
 using LewiStoreOOPSQL.Services;
 using Spectre.Console;
@@ -52,8 +53,8 @@ namespace LewiStoreOOPSQL
                         break;
 
 
-                    case "Cancel / Return to Menu":
-                        continue;
+                    // case "Cancel / Return to Menu":
+                    //     continue;
 
                     case "❌ Exit":
                         running = false;
@@ -108,8 +109,9 @@ namespace LewiStoreOOPSQL
     "🧾 View Sales",
     "✏️ Update Product",
     "🗑️ Delete Product",
-    "Cancel / Return to Menu",
     "❌ Exit"
+        // "Cancel / Return to Menu",
+    
                     })
             );
         }
@@ -124,6 +126,18 @@ namespace LewiStoreOOPSQL
             return choice == "Yes, return to menu";
         }
 
+        static bool ShouldContinueField(string fieldName)
+        {
+            string choice = AnsiConsole.Prompt(
+                new SelectionPrompt<string>()
+                    .Title($"[yellow]{fieldName}[/]")
+                    .AddChoices($"Enter {fieldName}", "Return to Menu")
+            );
+
+            return choice != "Return to Menu";
+        }
+
+
         static void AddProductUI(InventoryService service)
         {
             Console.Clear();
@@ -136,58 +150,99 @@ namespace LewiStoreOOPSQL
                 )
             );
 
-            var confirm = AnsiConsole.Prompt(
-                new SelectionPrompt<string>()
-                    .Title("Continue adding product?")
-                    .AddChoices("Continue", "Cancel"));
+            bool retryAdding = true;
 
-            if (confirm == "Cancel")
-                return;
-
-            try
+            while (retryAdding)
             {
-                int productId = AnsiConsole.Prompt(
-                    new TextPrompt<int>("[green]Enter Product ID:[/]")
-                        .ValidationErrorMessage("[red]Invalid number[/]")
-                        .Validate(id => id > 0)
-                );
+                try
+                {
+                    if (!ShouldContinueField("Product ID"))
+                        return;
 
-                string productName = AnsiConsole.Ask<string>("[green]Enter Product Name:[/]");
+                    int productId = AnsiConsole.Prompt(
+                        new TextPrompt<int>("[green]Enter Product ID:[/]")
+                            .ValidationErrorMessage("[red]Invalid number[/]")
+                            .Validate(id => id > 0)
+                    );
 
-                string description = AnsiConsole.Ask<string>("[green]Enter Description:[/]");
+                    Product existingProduct = service.GetProductById(productId);
 
-                decimal priceExclusiveVat = AnsiConsole.Prompt(
-                    new TextPrompt<decimal>("[green]Enter Price Excluding VAT:[/]")
-                        .ValidationErrorMessage("[red]Invalid price[/]")
-                        .Validate(price => price > 0)
-                );
+                    if (existingProduct != null)
+                    {
+                        AnsiConsole.MarkupLine("[red]Product with this ID already exists.[/]");
 
-                int quantityInStock = AnsiConsole.Prompt(
-                    new TextPrompt<int>("[green]Enter Quantity In Stock:[/]")
-                        .ValidationErrorMessage("[red]Invalid quantity[/]")
-                        .Validate(qty => qty >= 0)
-                );
+                        string retryChoice = AnsiConsole.Prompt(
+                            new SelectionPrompt<string>()
+                                .Title("[yellow]What would you like to do?[/]")
+                                .AddChoices("Try Again", "Return to Menu")
+                        );
 
-                Product product = new Product(
-                    productId,
-                    productName,
-                    description,
-                    priceExclusiveVat,
-                    quantityInStock
-                );
+                        if (retryChoice == "Return to Menu")
+                            return;
 
-                service.AddProduct(product);
+                        continue;
+                    }
 
-                AnsiConsole.Write(
-                    Align.Center(
-                        new Panel("[bold green]✔ Product Added Successfully[/]")
-                            .Border(BoxBorder.Rounded)
-                    )
-                );
-            }
-            catch (Exception ex)
-            {
-                AnsiConsole.MarkupLine($"[red]Error:[/] {Markup.Escape(ex.Message)}");
+                    if (!ShouldContinueField("Product Name"))
+                        return;
+
+                    string productName = AnsiConsole.Ask<string>("[green]Enter Product Name:[/]");
+
+                    if (!ShouldContinueField("Description"))
+                        return;
+
+                    string description = AnsiConsole.Ask<string>("[green]Enter Description:[/]");
+
+                    if (!ShouldContinueField("Price Excluding VAT"))
+                        return;
+
+                    decimal priceExclusiveVat = AnsiConsole.Prompt(
+                        new TextPrompt<decimal>("[green]Enter Price Excluding VAT:[/]")
+                            .ValidationErrorMessage("[red]Invalid price[/]")
+                            .Validate(price => price > 0)
+                    );
+
+                    if (!ShouldContinueField("Quantity In Stock"))
+                        return;
+
+                    int quantityInStock = AnsiConsole.Prompt(
+                        new TextPrompt<int>("[green]Enter Quantity In Stock:[/]")
+                            .ValidationErrorMessage("[red]Invalid quantity[/]")
+                            .Validate(qty => qty >= 0)
+                    );
+
+                    Product product = new Product(
+                        productId,
+                        productName,
+                        description,
+                        priceExclusiveVat,
+                        quantityInStock
+                    );
+
+                    service.AddProduct(product);
+
+                    AnsiConsole.Write(
+                        Align.Center(
+                            new Panel("[bold green]✔ Product Added Successfully[/]")
+                                .Border(BoxBorder.Rounded)
+                        )
+                    );
+
+                    retryAdding = false;
+                }
+                catch (Exception ex)
+                {
+                    AnsiConsole.MarkupLine($"[red]Error:[/] {Markup.Escape(ex.Message)}");
+
+                    string retryChoice = AnsiConsole.Prompt(
+                        new SelectionPrompt<string>()
+                            .Title("[yellow]Would you like to try again?[/]")
+                            .AddChoices("Try Again", "Return to Menu")
+                    );
+
+                    if (retryChoice == "Return to Menu")
+                        retryAdding = false;
+                }
             }
         }
 
@@ -241,8 +296,8 @@ namespace LewiStoreOOPSQL
 
             var back = AnsiConsole.Prompt(
                 new SelectionPrompt<string>()
-                    .Title("[yellow]What would you like to do?[/]")
-                    .AddChoices("Return to Menu", "Refresh View"));
+                    // .Title("[yellow]What would you like to do?[/]")
+                    .AddChoices("Return to Menu"));
 
             if (back == "Refresh View")
             {
@@ -256,7 +311,7 @@ namespace LewiStoreOOPSQL
 
             AnsiConsole.Write(
                 Align.Center(
-                    new Panel("[bold cyan]Inventory Overview[/]")
+                    new Panel("[bold cyan]Update Product[/]")
                         .Border(BoxBorder.Double)
                         .Padding(1, 1)
                 )
@@ -266,7 +321,7 @@ namespace LewiStoreOOPSQL
 
             if (products.Count == 0)
             {
-                AnsiConsole.MarkupLine("[red]No products available to delete.[/]");
+                AnsiConsole.MarkupLine("[red]No products available to update.[/]");
                 return;
             }
 
@@ -306,42 +361,95 @@ namespace LewiStoreOOPSQL
                     return;
                 }
 
-                AnsiConsole.MarkupLine($"[grey]Current Name:[/] {Markup.Escape(existingProduct.ProductName)}");
-                AnsiConsole.MarkupLine($"[grey]Current Description:[/] {Markup.Escape(existingProduct.Description)}");
-                AnsiConsole.MarkupLine($"[grey]Current Price:[/] R{existingProduct.PriceExclusiveVat:0.00}");
-                AnsiConsole.MarkupLine($"[grey]Current Stock:[/] {existingProduct.QuantityInStock}");
+                bool updating = true;
 
-                string newName = AnsiConsole.Ask<string>("[green]Enter New Product Name:[/]");
-                string newDescription = AnsiConsole.Ask<string>("[green]Enter New Description:[/]");
+                while (updating)
+                {
+                    Console.Clear();
 
-                decimal newPrice = AnsiConsole.Prompt(
-                    new TextPrompt<decimal>("[green]Enter New Price:[/]")
-                        .ValidationErrorMessage("[red]Invalid price[/]")
-                        .Validate(price => price > 0)
-                );
+                    AnsiConsole.Write(
+                        Align.Center(
+                            new Panel($"[bold yellow]Updating: {Markup.Escape(existingProduct.ProductName)}[/]")
+                                .Border(BoxBorder.Double)
+                        )
+                    );
 
-                int newQuantity = AnsiConsole.Prompt(
-                    new TextPrompt<int>("[green]Enter New Quantity:[/]")
-                        .ValidationErrorMessage("[red]Invalid quantity[/]")
-                        .Validate(qty => qty >= 0)
-                );
+                    AnsiConsole.MarkupLine($"[grey]Product ID:[/] {existingProduct.ProductId}");
+                    AnsiConsole.MarkupLine($"[grey]Name:[/] {Markup.Escape(existingProduct.ProductName)}");
+                    AnsiConsole.MarkupLine($"[grey]Description:[/] {Markup.Escape(existingProduct.Description)}");
+                    AnsiConsole.MarkupLine($"[grey]Price:[/] R{existingProduct.PriceExclusiveVat:0.00}");
+                    AnsiConsole.MarkupLine($"[grey]Stock:[/] {existingProduct.QuantityInStock}");
 
-                Product updatedProduct = new Product(
-                    productId,
-                    newName,
-                    newDescription,
-                    newPrice,
-                    newQuantity
-                );
+                    string updateChoice = AnsiConsole.Prompt(
+                        new SelectionPrompt<string>()
+                            .Title("[yellow]What would you like to update?[/]")
+                            .AddChoices(
+                                "Name",
+                                "Description",
+                                "Price",
+                                "Quantity",
+                                "Finish Updating",
+                                "Cancel"
+                            )
+                    );
 
-                service.UpdateProduct(updatedProduct);
+                    switch (updateChoice)
+                    {
+                        case "Name":
+                            existingProduct.ProductName = AnsiConsole.Ask<string>("[green]Enter new product name:[/]");
+                            service.UpdateProduct(existingProduct);
+                            AnsiConsole.MarkupLine("[green]Name updated successfully.[/]");
+                            break;
 
-                AnsiConsole.Write(
-                    Align.Center(
-                        new Panel("[bold green]✔ Product Updated Successfully[/]")
-                            .Border(BoxBorder.Rounded)
-                    )
-                );
+                        case "Description":
+                            existingProduct.Description = AnsiConsole.Ask<string>("[green]Enter new description:[/]");
+                            service.UpdateProduct(existingProduct);
+                            AnsiConsole.MarkupLine("[green]Description updated successfully.[/]");
+                            break;
+
+                        case "Price":
+                            existingProduct.PriceExclusiveVat = AnsiConsole.Prompt(
+                                new TextPrompt<decimal>("[green]Enter new price:[/]")
+                                    .ValidationErrorMessage("[red]Invalid price[/]")
+                                    .Validate(price => price > 0)
+                            );
+                            service.UpdateProduct(existingProduct);
+                            AnsiConsole.MarkupLine("[green]Price updated successfully.[/]");
+                            break;
+
+                        case "Quantity":
+                            existingProduct.QuantityInStock = AnsiConsole.Prompt(
+                                new TextPrompt<int>("[green]Enter new quantity:[/]")
+                                    .ValidationErrorMessage("[red]Invalid quantity[/]")
+                                    .Validate(qty => qty >= 0)
+                            );
+                            service.UpdateProduct(existingProduct);
+                            AnsiConsole.MarkupLine("[green]Quantity updated successfully.[/]");
+                            break;
+
+                        case "Finish Updating":
+                            updating = false;
+                            AnsiConsole.Write(
+                                Align.Center(
+                                    new Panel("[bold green]✔ Product Update Complete[/]")
+                                        .Border(BoxBorder.Rounded)
+                                )
+                            );
+                            break;
+
+                        case "Cancel":
+                            updating = false;
+                            AnsiConsole.MarkupLine("[grey]Update cancelled.[/]");
+                            break;
+                    }
+
+                    if (updating)
+                    {
+                        existingProduct = service.GetProductById(productId);
+                        AnsiConsole.MarkupLine("\n[grey]Press ENTER to continue updating...[/]");
+                        Console.ReadLine();
+                    }
+                }
             }
             catch (Exception ex)
             {
@@ -444,40 +552,38 @@ namespace LewiStoreOOPSQL
                 return;
             }
 
-            var stockTable = new Table().Border(TableBorder.Minimal);
-            stockTable.AddColumns(
-                "[yellow]ID[/]",
-                "[bold]Item[/]",
-                "[bold]Price[/]",
-                "[bold]Qty[/]",
-                "[bold]Status[/]"
-            );
+            var stockTable = new Table().Border(TableBorder.Rounded);
+
+            stockTable.AddColumn("[yellow]ID[/]");
+            stockTable.AddColumn("[yellow]Name[/]");
+            stockTable.AddColumn("[yellow]Description[/]");
+            stockTable.AddColumn("[yellow]Price[/]");
+            stockTable.AddColumn("[yellow]Qty[/]");
+            stockTable.AddColumn("[yellow]Status[/]");
 
             foreach (Product product in products)
             {
-                string qtyDisplay = product.QuantityInStock > 0
-                    ? $"[green]{product.QuantityInStock}[/]"
-                    : "[red]OUT[/]";
-
-                string status = product.QuantityInStock > 0
-                    ? "[green]Available[/]"
-                    : "[red]Sold out[/]";
+                string status = product.QuantityInStock == 0
+                    ? "[red]OUT OF STOCK[/]"
+                    : "[green]In Stock[/]";
 
                 stockTable.AddRow(
                     product.ProductId.ToString(),
                     Markup.Escape(product.ProductName),
-                    $"R{product.PriceExclusiveVat:N2}",
-                    qtyDisplay,
+                    Markup.Escape(product.Description),
+                    $"R{product.PriceExclusiveVat:0.00}",
+                    product.QuantityInStock.ToString(),
                     status
                 );
             }
-
             AnsiConsole.Write(
-                new Panel(stockTable)
-                    .Header("[cyan] Available Products [/]")
-                    .Border(BoxBorder.Rounded)
-                    .Padding(1, 0)
+                Align.Center(
+                    new Panel("[bold cyan]Available Products[/]")
+                        .Border(BoxBorder.Double)
+                )
             );
+
+            AnsiConsole.Write(Align.Center(stockTable));
 
             var confirmStep = AnsiConsole.Prompt(
                 new SelectionPrompt<string>()
@@ -487,74 +593,83 @@ namespace LewiStoreOOPSQL
             if (confirmStep == "Cancel")
                 return;
 
-            try
+            bool retrySelling = true;
+
+            while (retrySelling)
             {
-                int productId = AnsiConsole.Prompt(
-                    new TextPrompt<int>("[green]Enter Product ID to sell:[/]")
-                        .ValidationErrorMessage("[red]Please enter a valid ID[/]")
-                );
-
-                Product selectedProduct = service.GetProductById(productId);
-
-                if (selectedProduct == null)
+                try
                 {
-                    AnsiConsole.MarkupLine("[red]Product does not exist[/]");
-                    return;
+                    int productId = AnsiConsole.Prompt(
+                        new TextPrompt<int>("[green]Enter Product ID to sell:[/]")
+                            .ValidationErrorMessage("[red]Please enter a valid ID[/]")
+                    );
+
+                    Product selectedProduct = service.GetProductById(productId);
+
+                    if (selectedProduct == null)
+                        throw new Exception("Product does not exist.");
+
+                    AnsiConsole.MarkupLine($"Selected Product: {Markup.Escape(selectedProduct.ProductName)}");
+
+                    int sellQty = AnsiConsole.Prompt(
+                        new TextPrompt<int>("[green]Enter quantity to sell:[/]")
+                            .ValidationErrorMessage("[red]Please enter a positive number[/]")
+                            .Validate(qty => qty > 0, "[red]Quantity must be at least 1[/]")
+                    );
+
+                    var confirmSale = AnsiConsole.Prompt(
+                        new SelectionPrompt<string>()
+                            .Title($"[yellow]Confirm sale of {sellQty} {Markup.Escape(selectedProduct.ProductName)}?[/]")
+                            .AddChoices("Confirm", "Cancel"));
+
+                    if (confirmSale == "Cancel")
+                    {
+                        AnsiConsole.MarkupLine("[yellow]Sale cancelled.[/]");
+                        return;
+                    }
+
+                    Sale sale = service.SellProduct(productId, sellQty);
+                    Product updatedProduct = service.GetProductById(productId);
+
+                    var receipt = new Table();
+                    receipt.AddColumn("Field");
+                    receipt.AddColumn("Value");
+
+                    receipt.AddRow("Sale ID", sale.SaleId.ToString());
+                    receipt.AddRow("Item", Markup.Escape(selectedProduct.ProductName));
+                    receipt.AddRow("Price", $"R{selectedProduct.PriceExclusiveVat:0.00}");
+                    receipt.AddRow("Quantity", sale.QuantitySold.ToString());
+                    receipt.AddRow("Subtotal", $"R{sale.Subtotal:0.00}");
+                    receipt.AddRow("VAT", $"R{sale.VatAmount:0.00}");
+                    receipt.AddRow("TOTAL", $"R{sale.TotalAmount:0.00}");
+
+                    AnsiConsole.Write(
+                        new Panel(receipt)
+                            .Header("[green] RECEIPT [/]")
+                            .Border(BoxBorder.Double)
+                            .Padding(1, 1)
+                    );
+
+                    AnsiConsole.MarkupLine($"\n[green]Stock remaining: {updatedProduct.QuantityInStock}[/]");
+                    AnsiConsole.MarkupLine("[grey]Thank you for shopping![/]");
+
+                    retrySelling = false;
                 }
-
-                AnsiConsole.MarkupLine($"Selected Product: {Markup.Escape(selectedProduct.ProductName)}");
-
-                int sellQty = AnsiConsole.Prompt(
-                    new TextPrompt<int>("[green]Enter quantity to sell:[/]")
-                        .ValidationErrorMessage("[red]Please enter a positive number[/]")
-                        .Validate(qty => qty > 0, "[red]Quantity must be at least 1[/]")
-                );
-
-                if (ConfirmCancel())
+                catch (Exception ex)
                 {
-                    AnsiConsole.MarkupLine("[yellow]Sale cancelled.[/]");
-                    return;
+                    AnsiConsole.MarkupLine($"[red]Error:[/] {Markup.Escape(ex.Message)}");
+
+                    string retryChoice = AnsiConsole.Prompt(
+                        new SelectionPrompt<string>()
+                            .Title("[yellow]Would you like to try again?[/]")
+                            .AddChoices("Try Again", "Return to Menu")
+                    );
+
+                    if (retryChoice == "Return to Menu")
+                    {
+                        retrySelling = false;
+                    }
                 }
-
-                var confirmSale = AnsiConsole.Prompt(
-                    new SelectionPrompt<string>()
-                        .Title($"[yellow]Confirm sale of {sellQty} {Markup.Escape(selectedProduct.ProductName)}?[/]")
-                        .AddChoices("Confirm", "Cancel"));
-
-                if (confirmSale == "Cancel")
-                {
-                    AnsiConsole.MarkupLine("[red]Sale cancelled.[/]");
-                    return;
-                }
-
-                Sale sale = service.SellProduct(productId, sellQty);
-                Product updatedProduct = service.GetProductById(productId);
-
-                var receipt = new Table();
-                receipt.AddColumn("Field");
-                receipt.AddColumn("Value");
-
-                receipt.AddRow("Sale ID", sale.SaleId.ToString());
-                receipt.AddRow("Item", Markup.Escape(selectedProduct.ProductName));
-                receipt.AddRow("Price", $"R{selectedProduct.PriceExclusiveVat:0.00}");
-                receipt.AddRow("Quantity", sale.QuantitySold.ToString());
-                receipt.AddRow("Subtotal", $"R{sale.Subtotal:0.00}");
-                receipt.AddRow("VAT", $"R{sale.VatAmount:0.00}");
-                receipt.AddRow("TOTAL", $"R{sale.TotalAmount:0.00}");
-
-                AnsiConsole.Write(
-                    new Panel(receipt)
-                        .Header("[green] RECEIPT [/]")
-                        .Border(BoxBorder.Double)
-                        .Padding(1, 1)
-                );
-
-                AnsiConsole.MarkupLine($"\n[green]Stock remaining: {updatedProduct.QuantityInStock}[/]");
-                AnsiConsole.MarkupLine("[grey]Thank you for shopping![/]");
-            }
-            catch (Exception ex)
-            {
-                AnsiConsole.MarkupLine($"[red]Error:[/] {Markup.Escape(ex.Message)}");
             }
         }
 
@@ -611,9 +726,34 @@ namespace LewiStoreOOPSQL
 
         static void ExitScreen()
         {
-            Console.ForegroundColor = ConsoleColor.Green;
-            Console.BackgroundColor = ConsoleColor.Magenta;
             Console.Clear();
+
+            AnsiConsole.WriteLine();
+            AnsiConsole.WriteLine();
+            AnsiConsole.WriteLine();
+            AnsiConsole.WriteLine();
+            AnsiConsole.WriteLine();
+            AnsiConsole.WriteLine();
+
+            AnsiConsole.Write(
+                Align.Center(
+                    new Panel("[bold green]THANK YOU FOR USING LEWIS STORE[/]\n[grey]See you again soon.[/]")
+                        .Border(BoxBorder.Double)
+                        .Padding(4, 2)
+                )
+            );
+
+            AnsiConsole.WriteLine();
+            AnsiConsole.WriteLine();
+            AnsiConsole.WriteLine();
+
+            AnsiConsole.Write(
+                Align.Center(
+                    new Markup("[bold white]Developed By[/]\n[italic cyan]Thaqib Ghany & Geraldo Koopman[/]")
+                )
+            );
+
+            Thread.Sleep(3000);
         }
     }
 }

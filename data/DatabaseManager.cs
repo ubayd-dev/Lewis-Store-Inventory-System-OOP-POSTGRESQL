@@ -5,6 +5,12 @@ using LewiStoreOOPSQL.Models;
 
 namespace LewiStoreOOPSQL.Data
 {
+
+    /// <summary>
+    /// Handles all direct PostgreSQL operations.
+    /// This class is responsible only for data access,
+    /// not business validation or UI rules.
+    /// </summary>
     public class DatabaseManager
     {
         private readonly string connectionString;
@@ -162,6 +168,18 @@ namespace LewiStoreOOPSQL.Data
             }
         }
 
+
+        // --------           IMPORTANT              ---------------
+        /// <summary>
+        /// Processes a product sale inside a database transaction.
+        ///
+        /// This ensures:
+        /// - stock is reduced
+        /// - sale is recorded
+        /// - both succeed or both fail
+        ///
+        /// Prevents inconsistent data such as stock changing without a sale record.
+        /// </summary>
         public Sale ProcessSale(int productId, int quantity)
         {
             using (var conn = GetConnection())
@@ -338,26 +356,26 @@ namespace LewiStoreOOPSQL.Data
         }
 
         public bool ProductHasSales(int productId)
-{
-    using (var conn = GetConnection())
-    {
-        conn.Open();
+        {
+            using (var conn = GetConnection())
+            {
+                conn.Open();
 
-        string query = @"
+                string query = @"
             SELECT COUNT(*)
             FROM Sales
             WHERE ProductId = @ProductId";
 
-        using (var cmd = new NpgsqlCommand(query, conn))
-        {
-            cmd.Parameters.AddWithValue("@ProductId", productId);
+                using (var cmd = new NpgsqlCommand(query, conn))
+                {
+                    cmd.Parameters.AddWithValue("@ProductId", productId);
 
-            int count = Convert.ToInt32(cmd.ExecuteScalar());
+                    int count = Convert.ToInt32(cmd.ExecuteScalar());
 
-            return count > 0;
+                    return count > 0;
+                }
+            }
         }
-    }
-}
 
         public void DeleteProduct(int productId)
         {
