@@ -165,7 +165,7 @@ namespace LewiStoreOOPSQL
                             .Validate(id => id > 0)
                     );
 
-                    Product existingProduct = service.GetProductById(productId);
+                    Product? existingProduct = service.GetProductById(productId);
 
                     if (existingProduct != null)
                     {
@@ -353,7 +353,7 @@ namespace LewiStoreOOPSQL
                         .ValidationErrorMessage("[red]Invalid Product ID[/]")
                 );
 
-                Product existingProduct = service.GetProductById(productId);
+                Product? existingProduct = service.GetProductById(productId);
 
                 if (existingProduct == null)
                 {
@@ -396,35 +396,68 @@ namespace LewiStoreOOPSQL
                     switch (updateChoice)
                     {
                         case "Name":
-                            existingProduct.ProductName = AnsiConsole.Ask<string>("[green]Enter new product name:[/]");
-                            service.UpdateProduct(existingProduct);
-                            AnsiConsole.MarkupLine("[green]Name updated successfully.[/]");
+                            try
+                            {
+                                existingProduct.ProductName = AnsiConsole.Ask<string>("[green]Enter new product name:[/]");
+                                service.UpdateProduct(existingProduct);
+                                AnsiConsole.MarkupLine("[green]Name updated successfully.[/]");
+                            }
+                            catch (Exception ex)
+                            {
+                                AnsiConsole.MarkupLine($"[red]Error:[/] {Markup.Escape(ex.Message)}");
+                                existingProduct = service.GetProductById(productId);
+                            }
                             break;
 
                         case "Description":
-                            existingProduct.Description = AnsiConsole.Ask<string>("[green]Enter new description:[/]");
-                            service.UpdateProduct(existingProduct);
-                            AnsiConsole.MarkupLine("[green]Description updated successfully.[/]");
+                            try
+                            {
+                                existingProduct.Description = AnsiConsole.Ask<string>("[green]Enter new description:[/]");
+                                service.UpdateProduct(existingProduct);
+                                AnsiConsole.MarkupLine("[green]Description updated successfully.[/]");
+                            }
+                            catch (Exception ex)
+                            {
+                                AnsiConsole.MarkupLine($"[red]Error:[/] {Markup.Escape(ex.Message)}");
+                                existingProduct = service.GetProductById(productId);
+                            }
                             break;
 
                         case "Price":
-                            existingProduct.PriceExclusiveVat = AnsiConsole.Prompt(
-                                new TextPrompt<decimal>("[green]Enter new price:[/]")
+                            try
+                            {
+                                existingProduct.PriceExclusiveVat = AnsiConsole.Prompt(
+                                    new TextPrompt<decimal>("[green]Enter new price:[/]")
+
                                     .ValidationErrorMessage("[red]Invalid price[/]")
                                     .Validate(price => price > 0)
-                            );
-                            service.UpdateProduct(existingProduct);
-                            AnsiConsole.MarkupLine("[green]Price updated successfully.[/]");
+                                );
+                                service.UpdateProduct(existingProduct);
+                                AnsiConsole.MarkupLine("[green]Price updated successfully.[/]");
+                            }
+                            catch (Exception ex)
+                            {
+                                AnsiConsole.MarkupLine($"[red]Error:[/] {Markup.Escape(ex.Message)}");
+                                existingProduct = service.GetProductById(productId);
+                            }
                             break;
 
                         case "Quantity":
-                            existingProduct.QuantityInStock = AnsiConsole.Prompt(
-                                new TextPrompt<int>("[green]Enter new quantity:[/]")
+                            try
+                            {
+                                existingProduct.QuantityInStock = AnsiConsole.Prompt(
+                                    new TextPrompt<int>("[green]Enter new quantity:[/]")
                                     .ValidationErrorMessage("[red]Invalid quantity[/]")
                                     .Validate(qty => qty >= 0)
-                            );
-                            service.UpdateProduct(existingProduct);
-                            AnsiConsole.MarkupLine("[green]Quantity updated successfully.[/]");
+                                );
+                                service.UpdateProduct(existingProduct);
+                                AnsiConsole.MarkupLine("[green]Quantity updated successfully.[/]");
+                            }
+                            catch (Exception ex)
+                            {
+                                AnsiConsole.MarkupLine($"[red]Error:[/] {Markup.Escape(ex.Message)}");
+                                existingProduct = service.GetProductById(productId);
+                            }
                             break;
 
                         case "Finish Updating":
@@ -445,7 +478,17 @@ namespace LewiStoreOOPSQL
 
                     if (updating)
                     {
-                        existingProduct = service.GetProductById(productId);
+                        Product? refreshedProduct = service.GetProductById(productId);
+
+                        if (refreshedProduct == null)
+                        {
+                            AnsiConsole.MarkupLine("[red]Product no longer exists.[/]");
+                            updating = false;
+                            return;
+                        }
+
+                        existingProduct = refreshedProduct;
+
                         AnsiConsole.MarkupLine("\n[grey]Press ENTER to continue updating...[/]");
                         Console.ReadLine();
                     }
@@ -504,7 +547,7 @@ namespace LewiStoreOOPSQL
                         .ValidationErrorMessage("[red]Invalid Product ID[/]")
                 );
 
-                Product existingProduct = service.GetProductById(productId);
+                Product? existingProduct = service.GetProductById(productId);
 
                 if (existingProduct == null)
                 {
@@ -604,7 +647,7 @@ namespace LewiStoreOOPSQL
                             .ValidationErrorMessage("[red]Please enter a valid ID[/]")
                     );
 
-                    Product selectedProduct = service.GetProductById(productId);
+                    Product? selectedProduct = service.GetProductById(productId);
 
                     if (selectedProduct == null)
                         throw new Exception("Product does not exist.");
@@ -629,7 +672,7 @@ namespace LewiStoreOOPSQL
                     }
 
                     Sale sale = service.SellProduct(productId, sellQty);
-                    Product updatedProduct = service.GetProductById(productId);
+                    Product? updatedProduct = service.GetProductById(productId);
 
                     var receipt = new Table();
                     receipt.AddColumn("Field");
@@ -696,7 +739,7 @@ namespace LewiStoreOOPSQL
 
             table.AddColumn("[yellow]Sale ID[/]");
             table.AddColumn("[yellow]Product ID[/]");
-            table.AddColumn("[yellow]Quantity in stock[/]");
+            table.AddColumn("[yellow]Number of Items sold[/]");
             table.AddColumn("[yellow]Subtotal[/]");
             table.AddColumn("[yellow]VAT[/]");
             table.AddColumn("[yellow]Total[/]");

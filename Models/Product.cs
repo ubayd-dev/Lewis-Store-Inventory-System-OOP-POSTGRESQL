@@ -4,9 +4,9 @@ namespace LewiStoreOOPSQL.Models
     public class Product
     {
         private int productId;
-        private string productName;
+        private string productName = string.Empty;
 
-        private string description;
+        private string description = string.Empty;
         private decimal priceExclusiveVat;
         private int quantityInStock;
 

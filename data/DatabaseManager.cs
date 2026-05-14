@@ -86,7 +86,7 @@ namespace LewiStoreOOPSQL.Data
             return products;
         }
 
-        public Product GetProductById(int productId)
+        public Product? GetProductById(int productId)
         {
             using (var conn = GetConnection())
             {
@@ -195,7 +195,7 @@ namespace LewiStoreOOPSQL.Data
                     FROM Products
                     WHERE ProductId = @ProductId";
 
-                        Product product = null;
+                        Product? product = null;
 
                         using (var selectCmd = new NpgsqlCommand(selectQuery, conn, transaction))
                         {

@@ -98,7 +98,7 @@ namespace LewiStoreOOPSQL.Services
             if (product.QuantityInStock < 0)
                 throw new Exception("Quantity cannot be negative.");
 
-            Product existingProduct = db.GetProductById(product.ProductId);
+            Product? existingProduct = db.GetProductById(product.ProductId);
 
             if (existingProduct != null)
                 throw new Exception("Product with this ID already exists.");
@@ -120,7 +120,7 @@ namespace LewiStoreOOPSQL.Services
         /// Returns a single product by ID.
         /// Used for validation, updates, selling, and delete checks.
         /// </summary>
-        public Product GetProductById(int productId)
+        public Product? GetProductById(int productId)
         {
             return db.GetProductById(productId);
         }
@@ -147,7 +147,7 @@ namespace LewiStoreOOPSQL.Services
             if (product.QuantityInStock < 0)
                 throw new Exception("Quantity cannot be negative.");
 
-            Product existingProduct = db.GetProductById(product.ProductId);
+            Product? existingProduct = db.GetProductById(product.ProductId);
 
             if (existingProduct == null)
                 throw new Exception("Product not found.");
@@ -165,7 +165,7 @@ namespace LewiStoreOOPSQL.Services
         /// </summary>
         public void DeleteProduct(int productId)
         {
-            Product existingProduct = db.GetProductById(productId);
+            Product? existingProduct = db.GetProductById(productId);
 
             if (existingProduct == null)
                 throw new Exception("Product not found.");
